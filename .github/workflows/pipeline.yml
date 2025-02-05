@@ -1,0 +1,49 @@
+name: 🚀 CI/CD Pipeline - Déploiement sur GitHub avec SSH
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest  # Cela fonctionne pour les environnements GitHub Actions, même si ton serveur est Red Hat
+
+    steps:
+      - name: 🛎️ Vérifier le code source
+        uses: actions/checkout@v3
+
+      - name: 🔧 Installer Docker et Docker Compose sur Red Hat
+        run: |
+          sudo dnf install -y dnf-plugins-core
+          sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+          sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+          sudo systemctl start docker
+          sudo systemctl enable docker
+
+      - name: 📦 Construire et démarrer le conteneur Docker
+        run: |
+          docker-compose up --build -d
+
+      - name: ✅ Vérifier que le conteneur tourne bien
+        run: docker ps -a
+
+      - name: ⚙️ Configurer SSH pour GitHub
+        run: |
+          # Créer le répertoire pour la clé SSH
+          mkdir -p /home/runner/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /home/runner/.ssh/id_rsa
+          chmod 600 /home/runner/.ssh/id_rsa
+
+          # Ajouter GitHub à la liste des hôtes connus
+          ssh-keyscan github.com >> /home/runner/.ssh/known_hosts
+
+      - name: 🚀 Pousser le projet vers GitHub avec SSH
+        run: |
+          # Configurer l'utilisateur Git
+          git config --global user.name "khalilii"
+          git config --global user.email "khalili.yassinee@gmail.com"
+          # Ajouter, committer et pousser vers GitHub
+          git add .
+          git commit -m "Automated push from GitHub Actions - mise à jour de l'application"
+          git push git@github.com:khalilii/my-app.git main  # Remplace par ton dépôt GitHub
